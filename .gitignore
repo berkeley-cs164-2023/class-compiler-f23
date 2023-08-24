@@ -1,0 +1,9 @@
+.DS_Store
+_build
+runtime/*.o
+.merlin
+/output/
+program.o
+program
+program.s
+runtime.o
