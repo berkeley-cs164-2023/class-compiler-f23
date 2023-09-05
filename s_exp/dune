@@ -1,0 +1,10 @@
+(ocamllex
+ (modules lex))
+
+(menhir
+ (modules parse))
+
+(library
+ (name s_exp)
+ (preprocess
+  (pps ppx_deriving.show)))

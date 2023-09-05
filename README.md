@@ -1,13 +1,15 @@
-The in-class compiler status after the "What is a Compiler?" lecture.  See lecture notes for much more detail.
+The in-class compiler status before the "Unary Operations" lecture.  See lecture notes for much more detail.
 
 To run:
 
-`gcc -c runtime.c -o runtime.o`
-
-`utop`
+`dune utop`
 
 Inside utop:
 
-`#use "compile.ml";;`
+`open Cs164.Compile;;`
 
 `compile_and_run "56";;`
+
+And remember that you must recompile the runtime if you make changes:
+
+`gcc -c runtime.c -o runtime.o`
