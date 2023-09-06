@@ -1,12 +1,29 @@
-let compile (program: string): string =
-    String.concat "\n" ["global _entry";
-    "_entry:";
-    Printf.sprintf "		mov rax, %s" program;
-    "		ret"]
+open S_exp
+open Asm
+
+exception BadExpression of s_exp
+
+let rec compile_exp (program: s_exp): directive list =
+    match program with
+    | Num n ->
+        [Mov (Reg Rax, Imm n)]
+    | Lst [Sym "add1"; arg] ->
+        compile_exp arg @
+        [Add (Reg Rax, Imm 1)]
+    | Lst [Sym "sub1"; arg] ->
+        compile_exp arg @
+        [Sub (Reg Rax, Imm 1)]
+    | e -> raise (BadExpression e)
+
+let compile (program: s_exp): string =
+    [Global "entry"; Label "entry"] 
+    @ compile_exp program
+    @ [Ret]
+    |> List.map string_of_directive |> String.concat "\n"
 
 let compile_to_file (program: string): unit =
     let file = open_out "program.s" in 
-    output_string file (compile program);
+    output_string file (compile (parse program));
     close_out file
 
 let compile_and_run (program: string): string =
