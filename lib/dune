@@ -1,4 +1,3 @@
 (library
  (name cs164)
- (modules compile)
  (libraries s_exp asm))

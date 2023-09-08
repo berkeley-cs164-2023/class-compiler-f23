@@ -1,5 +1,6 @@
 open S_exp
 open Asm
+open Interp
 
 exception BadExpression of s_exp
 
@@ -33,3 +34,10 @@ let compile_and_run (program: string): string =
     let inp = Unix.open_process_in "./program" in
     let r = input_line inp in
     close_in inp; r
+
+let difftest (examples : string list) =
+    let results = List.map (fun ex -> (compile_and_run ex, interp ex)) examples in 
+    List.for_all (fun (r1, r2) -> r1 = r2) results
+
+let test () =
+    difftest ["43"; "(sub1 45)"; "(add1 45)"]

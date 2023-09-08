@@ -1,4 +1,4 @@
-The in-class compiler status after the "Unary Operations" class session.  See compiler implementation notes for much more detail.
+The in-class compiler status after the class session on the definitional interpreter and adding Booleans to the interpreter.  See compiler implementation notes for much more detail.
 
 To run:
 
@@ -6,9 +6,9 @@ To run:
 
 Inside utop:
 
-`open Cs164.Compile;;`
+`open Cs164.Interp;;`
 
-`compile_and_run "(sub1 (sub1 (sub1 (add1 50))))";;`
+`interp "(num? (not false))";;`
 
 And remember that you must recompile the runtime if you make changes:
 
