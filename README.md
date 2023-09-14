@@ -1,4 +1,4 @@
-The in-class compiler status after the class session on the definitional interpreter and adding Booleans to the interpreter.  See compiler implementation notes for much more detail.
+The in-class compiler status after the first class session on adding Booleans to the compiler.  See compiler implementation notes for much more detail.
 
 To run:
 
@@ -6,9 +6,9 @@ To run:
 
 Inside utop:
 
-`open Cs164.Interp;;`
+`open Cs164.Compile;;`
 
-`interp "(num? (not false))";;`
+`compile_and_run "true";;`
 
 And remember that you must recompile the runtime if you make changes:
 
