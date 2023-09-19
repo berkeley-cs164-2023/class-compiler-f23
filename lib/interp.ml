@@ -36,6 +36,8 @@ let rec interp_exp (program: s_exp): value =
         | Number _ -> Boolean true
         | _ -> Boolean false
     )
+    | Lst [Sym "if"; test_exp; then_exp; else_exp] ->
+        if interp_exp test_exp = Boolean false then interp_exp else_exp else interp_exp then_exp
     | e -> raise (BadExpression e)
 
 let interp (program: string) : string =
