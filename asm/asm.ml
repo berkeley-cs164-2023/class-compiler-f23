@@ -1,4 +1,4 @@
-type register = Rax | Rcx
+type register = Rax | Rcx | R8 | Rsp | Rbp
 
 let string_of_register ?(last_byte = false) (reg : register) : string =
   match (reg, last_byte) with
@@ -10,16 +10,30 @@ let string_of_register ?(last_byte = false) (reg : register) : string =
       "rcx"
   | Rcx, true ->
       "cl"
+  | R8, false ->
+      "r8"
+  | R8, true ->
+      "r8b"
+  | Rsp, true ->
+      "rsp"
+  | Rsp, false ->
+      "rsp"
+  | Rbp, true ->
+      "rsp"
+  | Rbp, false ->
+      "rsp"
 
-type operand = Reg of register | Imm of int
+type operand = Reg of register | Imm of int | MemOffset of (operand * operand)
 
 let is_register o = match o with Reg _ -> true | _ -> false
 
-let string_of_operand ?(last_byte = false) = function
+let rec string_of_operand ?(last_byte = false) = function
   | Reg r ->
       string_of_register ~last_byte r
   | Imm i ->
       string_of_int i
+  | MemOffset (o1, o2) ->
+      Printf.sprintf "[%s + %s]" (string_of_operand o1) (string_of_operand o2)
 
 type directive =
   | Global of string
@@ -33,6 +47,7 @@ type directive =
   | Shr of (operand * operand)
   | Cmp of (operand * operand)
   | Setz of operand
+  | Setl of operand
   | Jmp of string
   | Jz of string
   | Ret
@@ -81,6 +96,8 @@ let string_of_directive = function
         (string_of_operand src)
   | Setz dest ->
       Printf.sprintf "\tsetz %s" (string_of_operand ~last_byte:true dest)
+  | Setl dest ->
+      Printf.sprintf "\tsetl %s" (string_of_operand ~last_byte:true dest)
   | Jmp name ->
       Printf.sprintf "\tjmp %s" (label_name macos name)
   | Jz name ->
