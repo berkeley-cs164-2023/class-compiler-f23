@@ -1,4 +1,4 @@
-The in-class compiler status after the class session on adding Boolean operations and conditionals to the compiler.  See compiler implementation notes for much more detail.
+The in-class compiler status after the class session on adding binary operations.  See compiler implementation notes for much more detail.
 
 To run:
 
@@ -8,7 +8,7 @@ Inside utop:
 
 `open Cs164.Compile;;`
 
-`compile_and_run "(if (not true) 1 (if false 2 3))";;`
+`compile_and_run "(+ 2 (- 5 3))";;`
 
 And remember that you must recompile the runtime if you make changes:
 

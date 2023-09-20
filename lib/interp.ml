@@ -9,8 +9,8 @@ let string_of_value (v: value) : string =
     | Number n -> string_of_int n
     | Boolean b -> if b then "true" else "false"
 
-let rec interp_exp (program: s_exp): value =
-    match program with
+let rec interp_exp (exp: s_exp): value =
+    match exp with
     | Num n ->
         Number n
     | Sym "true" ->
@@ -35,6 +35,24 @@ let rec interp_exp (program: s_exp): value =
         match interp_exp arg with
         | Number _ -> Boolean true
         | _ -> Boolean false
+    )
+    | Lst [Sym "+"; e1; e2] -> (
+        match (interp_exp e1, interp_exp e2) with 
+        | Number n1, Number n2 -> Number (n1 + n2)
+        | _ -> raise (BadExpression exp)
+    )
+    | Lst [Sym "-"; e1; e2] -> (
+        match (interp_exp e1, interp_exp e2) with 
+        | Number n1, Number n2 -> Number (n1 - n2)
+        | _ -> raise (BadExpression exp)
+    )
+    | Lst [Sym "="; e1; e2] -> (
+        Boolean (interp_exp e1 = interp_exp e2)
+    )
+    | Lst [Sym "<"; e1; e2] -> (
+        match (interp_exp e1, interp_exp e2) with 
+        | Number n1, Number n2 -> Boolean (n1 < n2)
+        | _ -> raise (BadExpression exp)
     )
     | Lst [Sym "if"; test_exp; then_exp; else_exp] ->
         if interp_exp test_exp = Boolean false then interp_exp else_exp else interp_exp then_exp
