@@ -13,6 +13,9 @@ let bool_shift = 7
 let bool_mask = 0b1111111
 let bool_tag = 0b0011111
 
+let heap_mask = 0b111
+let pair_tag = 0b010
+
 let operand_of_bool (b: bool) : operand =
     Imm (((if b then 1 else 0) lsl bool_shift) lor bool_tag)
 
@@ -40,6 +43,23 @@ let rec compile_exp (tab : int symtab) (stack_index: int) (program: s_exp): dire
         [Mov (Reg Rax, operand_of_num n)]
     | Sym "true" -> [Mov (Reg Rax, operand_of_bool true)]
     | Sym "false" -> [Mov (Reg Rax, operand_of_bool false)]
+    | Lst [Sym "pair"; e1; e2] ->
+        compile_exp tab stack_index e1 
+        @ [Mov (stack_address stack_index, Reg Rax)]
+        @ compile_exp tab (stack_index - 8) e2
+        @ [Mov (Reg R8, stack_address stack_index)
+        ; Mov (MemOffset (Reg Rdi, Imm 0), Reg R8)
+        ; Mov (MemOffset (Reg Rdi, Imm 8), Reg Rax)
+        ; Mov (Reg Rax, Reg Rdi)
+        ; Or (Reg Rax, Imm pair_tag)
+        ; Add (Reg Rdi, Imm 16)
+        ]
+    | Lst [Sym "left"; e] ->
+        compile_exp tab stack_index e
+        @ [Mov (Reg Rax, MemOffset (Reg Rax, Imm (0 - pair_tag)))]
+    | Lst [Sym "right"; e] ->
+        compile_exp tab stack_index e
+        @ [Mov (Reg Rax, MemOffset (Reg Rax, Imm (0 - pair_tag + 8)))]
     | Lst [Sym "let"; Lst [Lst [Sym var; e]]; body] ->
         compile_exp tab stack_index e
         @ [Mov (stack_address stack_index, Reg Rax)]

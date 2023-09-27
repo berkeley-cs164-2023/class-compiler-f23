@@ -3,12 +3,14 @@ open Util
 
 exception BadExpression of s_exp
 
-type value = Number of int | Boolean of bool
+type value = Number of int | Boolean of bool | Pair of (value * value)
 
-let string_of_value (v: value) : string =
+let rec string_of_value (v: value) : string =
     match v with
     | Number n -> string_of_int n
     | Boolean b -> if b then "true" else "false"
+    | Pair (v1, v2) ->
+        Printf.sprintf "(pair %s %s)" (string_of_value v1) (string_of_value v2)
 
 let rec interp_exp env (exp: s_exp): value =
     match exp with
@@ -18,6 +20,18 @@ let rec interp_exp env (exp: s_exp): value =
         Boolean true
     | Sym "false" ->
         Boolean false
+    | Lst [Sym "pair"; e1; e2] ->
+        Pair (interp_exp env e1, interp_exp env e2)
+    | Lst [Sym "left"; e] -> (
+        match interp_exp env e with
+        | Pair (v, _) -> v
+        | _ -> raise (BadExpression exp)
+    )
+    | Lst [Sym "right"; e] -> (
+        match interp_exp env e with
+        | Pair (_, v) -> v
+        | _ -> raise (BadExpression exp)
+    )
     | Sym var when Symtab.mem var env->
         Symtab.find var env
     | Lst [Sym "let"; Lst [Lst [Sym var; e]]; body] ->
