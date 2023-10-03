@@ -1,4 +1,4 @@
-The in-class compiler status after the class session on pairs.  See compiler implementation notes for much more detail.
+The in-class compiler status after the class session on errors.  See compiler implementation notes for much more detail.
 
 To run:
 
@@ -8,7 +8,7 @@ Inside utop:
 
 `open Cs164.Compile;;`
 
-`compile_and_run "(right (pair 1 (pair 2 (pair 3 false))))";;`
+`compile_and_run "(add1 false)";;`
 
 And remember that you must recompile the runtime if you make changes:
 

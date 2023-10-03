@@ -40,6 +40,11 @@ void print_value(uint64_t value){
     }
 }
 
+void error(){
+    printf("ERROR");
+    exit(1);
+}
+
 int main(int argc, char **argv) {
     void *heap = (void *)malloc(4096);
     print_value(entry(heap));
