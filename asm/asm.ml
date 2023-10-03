@@ -56,6 +56,7 @@ type directive =
   | Jmp of string
   | Jz of string
   | Jnz of string
+  | Call of string
   | Ret
   | Comment of string
 
@@ -112,6 +113,8 @@ let string_of_directive = function
       Printf.sprintf "\tjz %s" (label_name macos name)
   | Jnz name ->
       Printf.sprintf "\tjnz %s" (label_name macos name)
+  | Call name ->
+      Printf.sprintf "\tcall %s" (label_name macos name)
   | Ret ->
       "\tret"
   | Comment s ->

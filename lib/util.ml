@@ -12,3 +12,9 @@ module Symtab = Map.Make (struct
 end)
 
 type 'a symtab = 'a Symtab.t
+
+let rec input_all (ch : in_channel) : string =
+  try
+    let c = input_char ch in
+    String.make 1 c ^ input_all ch
+  with End_of_file -> ""

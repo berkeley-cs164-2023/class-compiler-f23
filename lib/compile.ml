@@ -154,8 +154,32 @@ let rec compile_exp (tab : int symtab) (stack_index: int) (program: s_exp): dire
         @ lf_to_bool
     )
     | e -> raise (BadExpression e)
+    
+let rec compile_value (stack_index : int) (v : Interp.value) =
+    match v with
+    | Number n ->
+        [Mov (Reg Rax, operand_of_num n)]
+    | Boolean b ->
+        [Mov (Reg Rax, operand_of_bool b)]
+    | Pair (v1, v2) ->
+        compile_value stack_index v1
+        @ [Mov (stack_address stack_index, Reg Rax)]
+        @ compile_value (stack_index - 8) v2
+        @ [ Mov (Reg R8, stack_address stack_index)
+        ; Mov (MemOffset (Reg Rdi, Imm 0), Reg R8)
+        ; Mov (MemOffset (Reg Rdi, Imm 8), Reg Rax)
+        ; Mov (Reg Rax, Reg Rdi)
+        ; Or (Reg Rax, Imm pair_tag)
+        ; Add (Reg Rdi, Imm 16) ]
 
-let compile (program: s_exp): string =
+let compile (program : s_exp) : string =
+    [Global "entry"; Label "entry"]
+    @ compile_value (-8) (Interp.interp_exp Symtab.empty program)
+    @ [Ret]
+    |> List.map string_of_directive
+    |> String.concat "\n"
+
+let compile_old (program:s_exp): string =
     [Global "entry"; Extern "error"; Label "entry"] 
     @ compile_exp Symtab.empty (-8) program
     @ [Ret]
