@@ -45,6 +45,12 @@ void error(){
     exit(1);
 }
 
+uint64_t read_num() {
+     int r;
+     scanf("%d", &r);
+     return (uint64_t)(r) << num_shift;
+}
+
 int main(int argc, char **argv) {
     void *heap = (void *)malloc(4096);
     print_value(entry(heap));

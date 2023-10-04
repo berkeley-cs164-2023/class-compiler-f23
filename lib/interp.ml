@@ -12,6 +12,8 @@ let rec string_of_value (v: value) : string =
     | Pair (v1, v2) ->
         Printf.sprintf "(pair %s %s)" (string_of_value v1) (string_of_value v2)
 
+let input_channel = ref stdin
+
 let rec interp_exp env (exp: s_exp): value =
     match exp with
     | Num n ->
@@ -21,7 +23,11 @@ let rec interp_exp env (exp: s_exp): value =
     | Sym "false" ->
         Boolean false
     | Lst [Sym "pair"; e1; e2] ->
-        Pair (interp_exp env e1, interp_exp env e2)
+        let l = interp_exp env e1 in 
+        let r = interp_exp env e2 in 
+        Pair (l, r)
+    | Lst [Sym "read-num"] ->
+        Number (input_line !input_channel |> int_of_string)
     | Lst [Sym "left"; e] -> (
         match interp_exp env e with
         | Pair (v, _) -> v

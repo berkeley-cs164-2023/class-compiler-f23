@@ -53,6 +53,9 @@ let ensure_pair (op : operand) : directive list =
 
 let stack_address (stack_index : int) = MemOffset (Reg Rsp, Imm stack_index)
 
+let align_stack_index (stack_index : int) : int =
+    if stack_index mod 16 = -8 then stack_index else stack_index - 8
+
 let rec compile_exp (tab : int symtab) (stack_index: int) (program: s_exp): directive list =
     match program with
     | Num n ->
@@ -70,6 +73,14 @@ let rec compile_exp (tab : int symtab) (stack_index: int) (program: s_exp): dire
         ; Or (Reg Rax, Imm pair_tag)
         ; Add (Reg Rdi, Imm 16)
         ]
+    | Lst [Sym "read-num"] ->
+        [
+            Mov (stack_address stack_index, Reg Rdi);
+            Add (Reg Rsp, Imm (align_stack_index stack_index));
+            Call "read_num";
+            Sub (Reg Rsp, Imm (align_stack_index stack_index));
+            Mov (Reg Rdi, stack_address stack_index);
+            ]
     | Lst [Sym "left"; e] ->
         compile_exp tab stack_index e 
         @ ensure_pair (Reg Rax) 
@@ -154,33 +165,9 @@ let rec compile_exp (tab : int symtab) (stack_index: int) (program: s_exp): dire
         @ lf_to_bool
     )
     | e -> raise (BadExpression e)
-    
-let rec compile_value (stack_index : int) (v : Interp.value) =
-    match v with
-    | Number n ->
-        [Mov (Reg Rax, operand_of_num n)]
-    | Boolean b ->
-        [Mov (Reg Rax, operand_of_bool b)]
-    | Pair (v1, v2) ->
-        compile_value stack_index v1
-        @ [Mov (stack_address stack_index, Reg Rax)]
-        @ compile_value (stack_index - 8) v2
-        @ [ Mov (Reg R8, stack_address stack_index)
-        ; Mov (MemOffset (Reg Rdi, Imm 0), Reg R8)
-        ; Mov (MemOffset (Reg Rdi, Imm 8), Reg Rax)
-        ; Mov (Reg Rax, Reg Rdi)
-        ; Or (Reg Rax, Imm pair_tag)
-        ; Add (Reg Rdi, Imm 16) ]
 
-let compile (program : s_exp) : string =
-    [Global "entry"; Label "entry"]
-    @ compile_value (-8) (Interp.interp_exp Symtab.empty program)
-    @ [Ret]
-    |> List.map string_of_directive
-    |> String.concat "\n"
-
-let compile_old (program:s_exp): string =
-    [Global "entry"; Extern "error"; Label "entry"] 
+let compile (program:s_exp): string =
+    [Global "entry"; Extern "error"; Extern "read_num"; Label "entry"] 
     @ compile_exp Symtab.empty (-8) program
     @ [Ret]
     |> List.map string_of_directive |> String.concat "\n"
