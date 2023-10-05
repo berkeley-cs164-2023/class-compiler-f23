@@ -5,13 +5,21 @@
 %token LPAREN RPAREN
 %token EOF
 
-%start <Exp.t> main
+%type <Exp.t list> many
+%type <Exp.t> main
+%start main many
 
 %%
 
 main:
-| e = expr 
+| e = expr EOF
         { e }
+
+many:
+| EOF
+  { [] }
+| e = expr l = many
+  { e :: l }
 
 expr:
 | n = NUMBER
