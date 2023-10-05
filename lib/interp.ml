@@ -89,5 +89,25 @@ let rec interp_exp env (exp: s_exp): value =
 let interp (program: string) : string =
     string_of_value (interp_exp Symtab.empty (parse program))
 
+let interp_io (program : string) (input : string) =
+    let input_pipe_ex, input_pipe_en = Unix.pipe () in
+    let output_pipe_ex, output_pipe_en = Unix.pipe () in
+    input_channel := Unix.in_channel_of_descr input_pipe_ex ;
+    set_binary_mode_in !input_channel false ;
+    output_channel := Unix.out_channel_of_descr output_pipe_en ;
+    set_binary_mode_out !output_channel false ;
+    let write_input_channel = Unix.out_channel_of_descr input_pipe_en in
+    set_binary_mode_out write_input_channel false ;
+    let read_output_channel = Unix.in_channel_of_descr output_pipe_ex in
+    set_binary_mode_in read_output_channel false ;
+    output_string write_input_channel input ;
+    close_out write_input_channel ;
+    interp program ;
+    close_out !output_channel ;
+    let r = input_all read_output_channel in
+    input_channel := stdin ;
+    output_channel := stdout ;
+    r
+
 let interp_err (program : string) : string =
     try interp program with BadExpression _ -> "ERROR"
