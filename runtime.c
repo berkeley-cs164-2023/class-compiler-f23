@@ -51,8 +51,12 @@ uint64_t read_num() {
      return (uint64_t)(r) << num_shift;
 }
 
+void print_newline() {
+    printf("\n");
+}
+
 int main(int argc, char **argv) {
     void *heap = (void *)malloc(4096);
-    print_value(entry(heap));
+    entry(heap);
     return 0;
 }

@@ -13,6 +13,7 @@ let rec string_of_value (v: value) : string =
         Printf.sprintf "(pair %s %s)" (string_of_value v1) (string_of_value v2)
 
 let input_channel = ref stdin
+let output_channel = ref stdout
 
 let rec interp_exp env (exp: s_exp): value =
     match exp with
@@ -26,6 +27,14 @@ let rec interp_exp env (exp: s_exp): value =
         let l = interp_exp env e1 in 
         let r = interp_exp env e2 in 
         Pair (l, r)
+    | Lst (Sym "do" :: exps) when List.length exps > 0 ->
+        exps |> List.rev_map (interp_exp env) |> List.hd
+    | Lst [Sym "print"; e] ->
+        interp_exp env e |> string_of_value |> output_string !output_channel ;
+        Boolean true
+    | Lst [Sym "newline"] ->
+        output_string !output_channel "\n";
+        Boolean true
     | Lst [Sym "read-num"] ->
         Number (input_line !input_channel |> int_of_string)
     | Lst [Sym "left"; e] -> (
@@ -86,8 +95,8 @@ let rec interp_exp env (exp: s_exp): value =
         if interp_exp env test_exp = Boolean false then interp_exp env else_exp else interp_exp env then_exp
     | e -> raise (BadExpression e)
 
-let interp (program: string) : string =
-    string_of_value (interp_exp Symtab.empty (parse program))
+let interp (program: string) : unit =
+     interp_exp Symtab.empty (parse program) |> ignore
 
 let interp_io (program : string) (input : string) =
     let input_pipe_ex, input_pipe_en = Unix.pipe () in
@@ -109,5 +118,5 @@ let interp_io (program : string) (input : string) =
     output_channel := stdout ;
     r
 
-let interp_err (program : string) : string =
-    try interp program with BadExpression _ -> "ERROR"
+let interp_err (program : string) (input : string) : string =
+    try interp_io program input with BadExpression _ -> "ERROR"

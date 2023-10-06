@@ -81,6 +81,28 @@ let rec compile_exp (tab : int symtab) (stack_index: int) (program: s_exp): dire
             Sub (Reg Rsp, Imm (align_stack_index stack_index));
             Mov (Reg Rdi, stack_address stack_index);
             ]
+    | Lst (Sym "do" :: exps) when List.length exps > 0 ->
+        List.concat_map (compile_exp tab stack_index) exps
+    | Lst [Sym "print"; e] ->
+        compile_exp tab stack_index e @
+        [
+            Mov (stack_address stack_index, Reg Rdi);
+            Mov (Reg Rdi, Reg Rax);
+            Add (Reg Rsp, Imm (align_stack_index stack_index));
+            Call "print_value";
+            Sub (Reg Rsp, Imm (align_stack_index stack_index));
+            Mov (Reg Rdi, stack_address stack_index);
+            Mov (Reg Rax, operand_of_bool true)
+            ]
+    | Lst [Sym "newline"] ->
+        [
+            Mov (stack_address stack_index, Reg Rdi);
+            Add (Reg Rsp, Imm (align_stack_index stack_index));
+            Call "print_newline";
+            Sub (Reg Rsp, Imm (align_stack_index stack_index));
+            Mov (Reg Rdi, stack_address stack_index);
+            Mov (Reg Rax, operand_of_bool true)
+            ]
     | Lst [Sym "left"; e] ->
         compile_exp tab stack_index e 
         @ ensure_pair (Reg Rax) 
@@ -167,7 +189,12 @@ let rec compile_exp (tab : int symtab) (stack_index: int) (program: s_exp): dire
     | e -> raise (BadExpression e)
 
 let compile (program:s_exp): string =
-    [Global "entry"; Extern "error"; Extern "read_num"; Label "entry"] 
+    [Global "entry"; 
+    Extern "error"; 
+    Extern "read_num"; 
+    Extern "print_newline";
+    Extern "print_value";
+    Label "entry"] 
     @ compile_exp Symtab.empty (-8) program
     @ [Ret]
     |> List.map string_of_directive |> String.concat "\n"
@@ -195,28 +222,27 @@ let compile_and_run_io (program : string) (input : string) : string =
     let r = input_all inp in
     close_in inp ; r
 
-let compile_and_run_err (program : string) : string =
-    try compile_and_run program with BadExpression _ -> "ERROR"
+let compile_and_run_err (program : string) (input : string) : string =
+    try compile_and_run_io program input with BadExpression _ -> "ERROR"
 
-let difftest (examples : string list) =
-    let results = List.map (fun ex -> (compile_and_run_err ex, interp_err ex)) examples in 
+let difftest (examples : (string * string) list) =
+    let results = List.map (fun (ex, i) -> (compile_and_run_err ex i, interp_err ex i)) examples in 
     List.for_all (fun (r1, r2) -> r1 = r2) results
 
 let test () =
     difftest [
-        "43"; 
-        "(sub1 45)"; 
-        "(add1 45)";
-        "(add1 false)";
-        "(add1 (add1 40))";
-        "(not 3)";
-        "(not (not false))";
-        "(not (zero? 4))";
-        "(num? (add1 3))";
-        "(+ 1 3)";
-        "(+ false true)";
-        "(add1 false)";
-        "(sub1 false)";
-        "(= (pair 1 2) (pair 1 2))";
-        "(= 3 3)"
+        ("32", "")
+        ; ("(add1 (add1 40))" , "")
+        ; ("(sub1 43)", "")
+        ; ("(not 3)", "")
+        ; ("(not (not false))", "")
+        ; ("(not (zero? 4))", "")
+        ; ("(num? (add1 3))", "")
+        ; ("(+ 1 3)", "")
+        ; ("(+ false true)", "")
+        ; ("(add1 false)", "")
+        ; ("(sub1 false)", "")
+        ; ("(= (pair 1 2) (pair 1 2))", "")
+        ; ("(= 3 3)", "")
+        ; ("(print (read-num))", "1")
         ]
