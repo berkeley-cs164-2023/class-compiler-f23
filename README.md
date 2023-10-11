@@ -1,4 +1,4 @@
-The in-class compiler status after the class session on producing output.  See compiler implementation notes for much more detail.
+The in-class compiler status after the class session on adding functions in the interpreter.  See compiler implementation notes for much more detail.
 
 To run:
 
@@ -6,9 +6,9 @@ To run:
 
 Inside utop:
 
-`open Cs164.Compile;;`
+`open Cs164.Interp;;`
 
-`compile_and_run_io "(do (print (pair (read-num) (read-num))) (newline) (print 5))" "3\n4";;`
+`interp "(define (fib n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))) (print (fib 20))";;`
 
 And remember that you must recompile the runtime if you make changes:
 
