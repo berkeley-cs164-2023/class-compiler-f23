@@ -15,7 +15,7 @@ let rec string_of_value (v: value) : string =
 let input_channel = ref stdin
 let output_channel = ref stdout
 
-let rec interp_exp (defns : defn list) env (exp: s_exp): value =
+let rec interp_exp (defns : defn list) (env : value symtab) (exp: s_exp): value =
     match exp with
     | Num n ->
         Number n
