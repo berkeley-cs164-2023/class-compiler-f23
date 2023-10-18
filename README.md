@@ -1,4 +1,4 @@
-The in-class compiler status after the class session on implementing functions in the compiler.  See compiler implementation notes for much more detail.
+The in-class compiler status after the class session on tail calls.  See compiler implementation notes for much more detail.
 
 To run:
 
@@ -6,9 +6,15 @@ To run:
 
 Inside utop:
 
-`open Cs164.Interp;;`
+`open Cs164.Compile;;`
 
-`compile_and_run "(define (fib n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))) (print (fib 20))";;`
+```
+compile_and_run "(define (sum n total)
+  (if (zero? n)
+    total
+    (sum (sub1 n) (+ n total))))
+(print (sum 1000000 0))";;
+```
 
 And remember that you must recompile the runtime if you make changes:
 

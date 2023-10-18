@@ -62,14 +62,14 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
         [Mov (Reg Rax, operand_of_num n)]
     | Sym "true" -> [Mov (Reg Rax, operand_of_bool true)]
     | Sym "false" -> [Mov (Reg Rax, operand_of_bool false)]
-    | Lst (Sym f :: args) when is_defn defns f ->
+    | Lst (Sym f :: args) when is_defn defns f && not is_tail->
         let defn = get_defn defns f in 
         if List.length args = List.length defn.args then 
         let stack_base = align_stack_index (stack_index + 8) in    
         let compiled_args =
             args
             |> List.mapi (fun i arg ->
-                compile_exp defns tab (stack_base - ((i+2) * 8)) arg (false && is_tail)
+                compile_exp defns tab (stack_base - ((i+2) * 8)) arg false
                 @ [Mov (stack_address (stack_base - ((i+2) * 8)), Reg Rax)]
             ) 
             |> List.concat in 
@@ -79,6 +79,27 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
             Call (defn_label f);
             Sub (Reg Rsp, Imm stack_base);
             ]
+        else
+            raise (BadExpression program)
+    | Lst (Sym f :: args) when is_defn defns f && is_tail->
+        let defn = get_defn defns f in 
+        if List.length args = List.length defn.args then   
+        let compiled_args =
+            args
+            |> List.mapi (fun i arg ->
+                compile_exp defns tab (stack_index - (8*i)) arg false
+                @ [Mov (stack_address (stack_index - (8*i)), Reg Rax)]
+            ) 
+            |> List.concat in  
+        let moved_args =
+            args
+            |> List.mapi (fun i _ ->
+                [Mov (Reg R8, stack_address (stack_index - (8*i)))
+                ; Mov (stack_address ((i + 1) * -8), Reg R8)]
+            ) 
+            |> List.concat in 
+            compiled_args @ moved_args
+        @ [Jmp (defn_label f);]
         else
             raise (BadExpression program)
     | Lst [Sym "pair"; e1; e2] ->
@@ -103,7 +124,7 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
     | Lst (Sym "do" :: exps) when List.length exps > 0 ->
         List.mapi (fun i exp ->
             compile_exp defns tab stack_index exp
-                (if i = List.length exps - 1 then false else false))
+                (if i = List.length exps - 1 then is_tail else false))
         exps
         |> List.concat
     | Lst [Sym "print"; e] ->
@@ -137,7 +158,7 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
     | Lst [Sym "let"; Lst [Lst [Sym var; e]]; body] ->
         compile_exp defns tab stack_index e false
         @ [Mov (stack_address stack_index, Reg Rax)]
-        @ compile_exp defns (Symtab.add var stack_index tab) (stack_index - 8) body false
+        @ compile_exp defns (Symtab.add var stack_index tab) (stack_index - 8) body is_tail
     | Sym var when Symtab.mem var tab ->
         [Mov (Reg Rax, stack_address (Symtab.find var tab))]
     | Lst [Sym "not"; arg] ->
@@ -165,10 +186,10 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
         let continue_label = Util.gensym "continue" in
         compile_exp defns tab stack_index test_exp false
         @ [Cmp (Reg Rax, operand_of_bool false); Jz else_label]
-        @ compile_exp defns tab stack_index then_exp false
+        @ compile_exp defns tab stack_index then_exp is_tail
         @ [Jmp continue_label]
         @ [Label else_label]
-        @ compile_exp defns tab stack_index else_exp false
+        @ compile_exp defns tab stack_index else_exp is_tail
         @ [Label continue_label]
     | Lst [Sym "+"; e1; e2] -> (
         compile_exp defns tab stack_index e1 false
@@ -218,7 +239,7 @@ let compile_defn defns defn =
         |> Symtab.of_list
     in
     [Label (defn_label defn.name)]
-    @ compile_exp defns ftab (-8 * (List.length defn.args + 1)) defn.body false
+    @ compile_exp defns ftab (-8 * (List.length defn.args + 1)) defn.body true
     @ [Ret]
 
 let compile (program:s_exp list): string =
@@ -229,7 +250,7 @@ let compile (program:s_exp list): string =
     Extern "print_newline";
     Extern "print_value";
     Label "entry"] 
-    @ compile_exp defns Symtab.empty (-8) body false
+    @ compile_exp defns Symtab.empty (-8) body true
     @ [Ret]
     @ List.concat_map (compile_defn defns) defns
     |> List.map string_of_directive |> String.concat "\n"
