@@ -6,14 +6,10 @@ To run:
 
 Inside utop:
 
-`open Cs164.Compile;;`
+`open Cs164.Handparser;;`
 
 ```
-compile_and_run "(define (sum n total)
-  (if (zero? n)
-    total
-    (sum (sub1 n) (+ n total))))
-(print (sum 1000000 0))";;
+parse "( + 1 ( + 2 3 ) )";;
 ```
 
 And remember that you must recompile the runtime if you make changes:
