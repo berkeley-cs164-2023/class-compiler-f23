@@ -5,3 +5,5 @@ let show = Exp.show
 let parse = Parser.parse
 
 let parse_many = Parser.parse_many
+
+exception BadSExpression of s_exp
