@@ -2,7 +2,11 @@ open S_exp
 open Ast
 open Util
 
-type value = Number of int | Boolean of bool | Pair of (value * value)
+type value = 
+    Number of int 
+    | Boolean of bool 
+    | Pair of (value * value)
+    | Function of string
 
 let rec string_of_value (v: value) : string =
     match v with
@@ -10,6 +14,8 @@ let rec string_of_value (v: value) : string =
     | Boolean b -> if b then "true" else "false"
     | Pair (v1, v2) ->
         Printf.sprintf "(pair %s %s)" (string_of_value v1) (string_of_value v2)
+    | Function _ ->
+        "<function>"
 
 let input_channel = ref stdin
 let output_channel = ref stdout
@@ -22,14 +28,18 @@ let rec interp_exp (defns : defn list) (env : value symtab) (exp: expr): value =
         Boolean true
     | False ->
         Boolean false
-    | Call (f, args) when is_defn defns f ->
-        let defn = get_defn defns f in 
-        if List.length args = List.length defn.args then 
-            let vals = List.map (interp_exp defns env) args in 
-            let fenv = (List.combine defn.args vals) |> Symtab.of_list in
-            interp_exp defns fenv defn.body
-        else raise (BadExpression exp)
-    | Call _ -> raise (BadExpression exp)
+    | Call (f, args) -> (
+        let vals = List.map (interp_exp defns env) args in 
+        let fv = interp_exp defns env f in 
+        match fv with 
+        | Function name when is_defn defns name ->
+            let defn = get_defn defns name in 
+            if List.length args = List.length defn.args then 
+                let fenv = (List.combine defn.args vals) |> Symtab.of_list in
+                interp_exp defns fenv defn.body
+            else raise (BadExpression exp)
+        | _ -> raise (BadExpression exp)
+    )
     | Prim2 (Pair, e1, e2) ->
         let l = interp_exp defns env e1 in 
         let r = interp_exp defns env e2 in 
@@ -56,6 +66,8 @@ let rec interp_exp (defns : defn list) (env : value symtab) (exp: expr): value =
     )
     | Var var when Symtab.mem var env ->
         Symtab.find var env
+    | Var var when is_defn defns var ->
+        Function var
     | Var _ -> raise (BadExpression exp)
     | Let (var, e, body) ->
         let e_value = interp_exp defns env e in 

@@ -12,6 +12,7 @@
 
 #define heap_mask 0b111
 #define pair_tag 0b10
+#define fn_tag 0b110
 
 extern uint64_t entry(void *heap);
 
@@ -34,6 +35,8 @@ void print_value(uint64_t value){
         printf(" ");
         print_value(v2);
         printf(")");
+    } else if ((value & heap_mask) == fn_tag){
+        printf("<function>");
     }
     else {
         printf("BAD VALE %" PRIu64, value);
