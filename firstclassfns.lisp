@@ -42,3 +42,16 @@
 (let ((l (retlam)))
     (print (l))
 )
+
+-------
+for discussion
+
+(define (f a) (+ a b))
+(print (f 2))
+
+(define (sum-to x)
+  (if (= x 0) 
+    0
+    (+ x (sum-to (sub1 x)))
+  ))
+(print (sum-to 700))
