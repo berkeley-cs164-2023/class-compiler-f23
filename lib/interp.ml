@@ -6,7 +6,7 @@ type value =
     Number of int 
     | Boolean of bool 
     | Pair of (value * value)
-    | Function of string
+    | Function of (string * value symtab)
 
 let rec string_of_value (v: value) : string =
     match v with
@@ -32,10 +32,10 @@ let rec interp_exp (defns : defn list) (env : value symtab) (exp: expr): value =
         let vals = List.map (interp_exp defns env) args in 
         let fv = interp_exp defns env f in 
         match fv with 
-        | Function name when is_defn defns name ->
+        | Function (name, saved_env) when is_defn defns name ->
             let defn = get_defn defns name in 
             if List.length args = List.length defn.args then 
-                let fenv = (List.combine defn.args vals) |> Symtab.of_list in
+                let fenv = (List.combine defn.args vals) |> Symtab.add_list saved_env in
                 interp_exp defns fenv defn.body
             else raise (BadExpression exp)
         | _ -> raise (BadExpression exp)
@@ -67,8 +67,10 @@ let rec interp_exp (defns : defn list) (env : value symtab) (exp: expr): value =
     | Var var when Symtab.mem var env ->
         Symtab.find var env
     | Var var when is_defn defns var ->
-        Function var
+        Function (var, Symtab.empty)
     | Var _ -> raise (BadExpression exp)
+    | Closure f ->
+        Function (f, env)
     | Let (var, e, body) ->
         let e_value = interp_exp defns env e in 
         interp_exp defns (Symtab.add var e_value env) body

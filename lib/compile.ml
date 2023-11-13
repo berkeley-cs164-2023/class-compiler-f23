@@ -64,6 +64,25 @@ let stack_address (stack_index : int) = MemOffset (Reg Rsp, Imm stack_index)
 let align_stack_index (stack_index : int) : int =
     if stack_index mod 16 = -8 then stack_index else stack_index - 8
 
+let rec fv (bound: string list) (exp : expr) = 
+    match exp with 
+    | Var s when not (List.mem s bound) ->
+        [s]
+    | Let (v, e, body) ->
+        fv bound e @ fv (v::bound) body
+    | If (te, the, ee) ->
+        fv bound te @ fv bound the @ fv bound ee
+    | Do es -> 
+        List.concat_map (fv bound) es 
+    | Call (exp, args) ->
+        fv bound exp @ List.concat_map (fv bound) args
+    | Prim1 (_, e) -> 
+        fv bound e 
+    | Prim2 (_, e1, e2) -> 
+        fv bound e1 @ fv bound e2
+    | _ -> 
+        []
+
 let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (program: expr) (is_tail : bool): directive list =
     match program with
     | Num n ->
@@ -82,7 +101,10 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
             compiled_args
             @ compile_exp defns tab (stack_base - ((List.length args +2) * 8)) f false
             @ ensure_fn (Reg Rax)
-            @ [ Sub (Reg Rax, Imm fn_tag)]
+            @ [ Mov (stack_address (stack_base - (8 * (List.length args + 2))), Reg Rax);
+                Sub (Reg Rax, Imm fn_tag);
+                Mov (Reg Rax, MemOffset (Reg Rax, Imm 0))
+                ]
         @ [
             Add (Reg Rsp, Imm stack_base);
             ComputedCall (Reg Rax);
@@ -105,9 +127,10 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
             |> List.concat in 
             compiled_args
             @ compile_exp defns tab (stack_index - (8 * List.length args)) f false
-            @ ensure_fn (Reg Rax)
-            @ [ Sub (Reg Rax, Imm fn_tag)]
-             @ moved_args
+            @ ensure_fn (Reg Rax) @ moved_args
+            @ [ Mov (stack_address ((List.length args + 1) * -8), Reg Rax);
+                Sub (Reg Rax, Imm fn_tag);
+                Mov (Reg Rax, MemOffset (Reg Rax, Imm 0))]
         @ [ComputedJmp (Reg Rax);]
     | Call _ -> raise (BadExpression program)
     | Prim2 (Pair, e1, e2) ->
@@ -172,9 +195,36 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
     | Var var when is_defn defns var ->
         [
             LeaLabel (Reg Rax, defn_label var);
-            Or (Reg Rax, Imm fn_tag)
+            Mov (MemOffset (Reg Rdi, Imm 0), Reg Rax);
+            Mov (Reg Rax, Reg Rdi);
+            Or (Reg Rax, Imm fn_tag);
+            Add (Reg Rdi, Imm 8)
         ]
     | Var _ -> raise (BadExpression program)
+    | Closure f -> 
+        let defn = get_defn defns f in 
+        let fvs = fv (List.map (fun d -> d.name) defns @ defn.args) defn.body in 
+        let fv_movs = 
+            List.mapi
+            (fun i var ->
+                [
+                    Mov (Reg Rax, stack_address (Symtab.find var tab));
+                    Mov (MemOffset (Reg Rdi, Imm (8* (i + 1))), Reg Rax)
+                ]
+            )
+            fvs
+        in 
+        if List.exists (fun v -> not (Symtab.mem v tab)) fvs then 
+            raise (BadExpression program)
+        else 
+            [LeaLabel (Reg Rax, defn_label f);
+            Mov (MemOffset (Reg Rdi, Imm 0), Reg Rax)
+            ]
+            @ List.concat fv_movs
+            @ [Mov (Reg Rax, Reg Rdi)
+            ; Or (Reg Rax, Imm fn_tag)
+            ; Add (Reg Rdi, Imm (8*(List.length fvs + 1)))
+            ]
     | Prim1 (Not, arg) ->
         compile_exp defns tab stack_index arg false @
         [Cmp (Reg Rax, operand_of_bool false)]
@@ -246,13 +296,30 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
     )
 
 let compile_defn defns defn =
+    let fvs = fv (List.map (fun d -> d.name) defns @ defn.args) defn.body in 
     let ftab =
-        defn.args 
+        defn.args @ fvs
         |> List.mapi (fun i arg -> (arg, -8 * (i + 1)))
         |> Symtab.of_list
     in
+    let fvs_to_stack = 
+        [
+            Mov (Reg Rax, stack_address (-8 * (List.length defn.args + 1)))
+            ; Sub (Reg Rax, Imm fn_tag)
+            ; Add (Reg Rax, Imm 8)
+            ;
+        ]
+        @ List.concat
+            (List.mapi 
+                (fun i _ -> 
+                    [Mov (Reg R8, MemOffset (Reg Rax, Imm (i * 8)))
+                    ; Mov (stack_address (-8 * (List.length defn.args + 1 + i)), Reg R8)]
+                )
+            fvs)
+    in 
     [Align 8; Label (defn_label defn.name)]
-    @ compile_exp defns ftab (-8 * (List.length defn.args + 1)) defn.body true
+    @ fvs_to_stack
+    @ compile_exp defns ftab (-8 * (Symtab.cardinal ftab + 1)) defn.body true
     @ [Ret]
 
 let compile (program:s_exp list): string =
