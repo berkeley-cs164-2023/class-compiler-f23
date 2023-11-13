@@ -194,11 +194,9 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
         [Mov (Reg Rax, stack_address (Symtab.find var tab))]
     | Var var when is_defn defns var ->
         [
-            LeaLabel (Reg Rax, defn_label var);
-            Mov (MemOffset (Reg Rdi, Imm 0), Reg Rax);
-            Mov (Reg Rax, Reg Rdi);
-            Or (Reg Rax, Imm fn_tag);
-            Add (Reg Rdi, Imm 8)
+            Mov (Reg Rax, Reg Rcx)
+            ; Add (Reg Rax, Imm (get_defn defns var).offset)
+            ; Or (Reg Rax, Imm fn_tag)
         ]
     | Var _ -> raise (BadExpression program)
     | Closure f -> 
@@ -325,14 +323,24 @@ let compile_defn defns defn =
     @ compile_exp defns ftab (-8 * (Symtab.cardinal ftab + 1)) defn.body true
     @ [Ret]
 
+let compile_toplevel_closure defn = 
+    [ LeaLabel (Reg Rax, defn_label defn.name)
+    ; Mov (MemOffset (Reg Rdi, Imm defn.offset), Reg Rax)
+    ]
+
 let compile (program:s_exp list): string =
     let prog = program_of_s_exps program in
+    let toplevel_funcs = List.filter (fun defn -> defn.toplevel) prog.defns in
     [Global "entry"; 
     Extern "error"; 
     Extern "read_num"; 
     Extern "print_newline";
     Extern "print_value";
-    Label "entry"] 
+    Label "entry";
+    Mov (Reg Rcx, Reg Rdi)]
+    @ List.concat (List.map
+        (fun defn -> compile_toplevel_closure defn) toplevel_funcs)
+    @ [Add (Reg Rdi, Imm (List.length toplevel_funcs * 8))]
     @ compile_exp prog.defns Symtab.empty (-8) prog.body true
     @ [Ret]
     @ List.concat_map (compile_defn prog.defns) prog.defns
