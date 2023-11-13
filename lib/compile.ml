@@ -297,6 +297,9 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
 
 let compile_defn defns defn =
     let fvs = fv (List.map (fun d -> d.name) defns @ defn.args) defn.body in 
+    if List.length fvs > 0 && defn.toplevel
+        then raise (BadExpression defn.body)
+    else
     let ftab =
         defn.args @ fvs
         |> List.mapi (fun i arg -> (arg, -8 * (i + 1)))
