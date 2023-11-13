@@ -64,22 +64,25 @@ let stack_address (stack_index : int) = MemOffset (Reg Rsp, Imm stack_index)
 let align_stack_index (stack_index : int) : int =
     if stack_index mod 16 = -8 then stack_index else stack_index - 8
 
-let rec fv (bound: string list) (exp : expr) = 
+let rec fv (defns : defn list) (bound: string list) (exp : expr) = 
     match exp with 
     | Var s when not (List.mem s bound) ->
         [s]
     | Let (v, e, body) ->
-        fv bound e @ fv (v::bound) body
+        fv defns bound e @ fv defns (v::bound) body
     | If (te, the, ee) ->
-        fv bound te @ fv bound the @ fv bound ee
+        fv defns bound te @ fv defns bound the @ fv defns bound ee
     | Do es -> 
-        List.concat_map (fv bound) es 
+        List.concat_map (fv defns bound) es 
     | Call (exp, args) ->
-        fv bound exp @ List.concat_map (fv bound) args
+        fv defns bound exp @ List.concat_map (fv defns bound) args
     | Prim1 (_, e) -> 
-        fv bound e 
+        fv defns bound e 
     | Prim2 (_, e1, e2) -> 
-        fv bound e1 @ fv bound e2
+        fv defns bound e1 @ fv defns bound e2
+    | Closure f ->
+        let defn = get_defn defns f in
+        fv defns (bound @ List.map (fun d -> d.name) defns @ defn.args) defn.body
     | _ -> 
         []
 
@@ -201,7 +204,7 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
     | Var _ -> raise (BadExpression program)
     | Closure f -> 
         let defn = get_defn defns f in 
-        let fvs = fv (List.map (fun d -> d.name) defns @ defn.args) defn.body in 
+        let fvs = fv defns (List.map (fun d -> d.name) defns @ defn.args) defn.body in 
         let fv_movs = 
             List.mapi
             (fun i var ->
@@ -294,7 +297,7 @@ let rec compile_exp (defns : defn list) (tab : int symtab) (stack_index: int) (p
     )
 
 let compile_defn defns defn =
-    let fvs = fv (List.map (fun d -> d.name) defns @ defn.args) defn.body in 
+    let fvs = fv defns (List.map (fun d -> d.name) defns @ defn.args) defn.body in 
     if List.length fvs > 0 && defn.toplevel
         then raise (BadExpression defn.body)
     else
