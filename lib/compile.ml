@@ -333,6 +333,7 @@ let compile_toplevel_closure defn =
 
 let compile (program:s_exp list): string =
     let prog = program_of_s_exps program in
+    let prog = Constant_folding.fold_program prog in 
     let toplevel_funcs = List.filter (fun defn -> defn.toplevel) prog.defns in
     [Global "entry"; 
     Extern "error"; 

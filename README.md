@@ -1,4 +1,4 @@
-The in-class compiler status after implementing closures.  See compiler implementation notes for much more detail.
+The in-class compiler status after (partially!) implementing constant folding.  See compiler implementation notes for much more detail.
 
 To run:
 
@@ -9,8 +9,7 @@ Inside utop:
 `open Cs164.Compile;;`
 
 ```
-compile_and_run "(define (f g) (g 2))
-(let ((y 3)) (print (f (lambda (x) (+ x y)))))";;
+compile_and_run "(print (+ 4 8))";;
 ```
 
 And remember that you must recompile the runtime if you make changes:
